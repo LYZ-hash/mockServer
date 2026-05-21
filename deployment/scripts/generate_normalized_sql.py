@@ -67,6 +67,8 @@ USE medical_mock;
 
 -- 如果有旧表，先清空 (为防止外键冲突，先删有依赖关系的表)
 DROP TABLE IF EXISTS registration;
+DROP TABLE IF EXISTS inpatient_balance;
+DROP TABLE IF EXISTS inpatient_record;
 DROP TABLE IF EXISTS item_price;
 DROP TABLE IF EXISTS hospital_info;
 DROP TABLE IF EXISTS patient;
@@ -177,7 +179,42 @@ CREATE TABLE patient (
     INDEX idx_patient_card (patient_card)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 6. 创建挂号表 (MODIFIED)
+-- 6. 创建住院记录表
+CREATE TABLE inpatient_record (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    patient_id VARCHAR(50) NOT NULL,
+    medical_no VARCHAR(50) NOT NULL,
+    card_type VARCHAR(20),
+    card_no VARCHAR(50),
+    adm_info_list VARCHAR(500),
+    adm_id VARCHAR(50) NOT NULL,
+    adm_date VARCHAR(20),
+    adm_dept VARCHAR(100),
+    bill_no VARCHAR(50),
+    adm_reason VARCHAR(100),
+    national_code VARCHAR(20),
+    FOREIGN KEY (patient_id) REFERENCES patient(patient_id),
+    UNIQUE KEY uk_inpatient_record_medical_no (medical_no),
+    UNIQUE KEY uk_inpatient_record_adm_id (adm_id),
+    INDEX idx_inpatient_record_patient_id (patient_id),
+    INDEX idx_inpatient_record_card_no (card_no)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 7. 创建住院余额表
+CREATE TABLE inpatient_balance (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    patient_id VARCHAR(50) NOT NULL,
+    medical_no VARCHAR(50) NOT NULL,
+    total_amount VARCHAR(20),
+    deposit_amount VARCHAR(20),
+    deposit_balance VARCHAR(20),
+    FOREIGN KEY (patient_id) REFERENCES patient(patient_id),
+    FOREIGN KEY (medical_no) REFERENCES inpatient_record(medical_no),
+    UNIQUE KEY uk_inpatient_balance_medical_no (medical_no),
+    INDEX idx_inpatient_balance_patient_id (patient_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 8. 创建挂号表 (MODIFIED)
 CREATE TABLE registration (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     patient_id VARCHAR(50),
@@ -196,7 +233,7 @@ CREATE TABLE registration (
     INDEX idx_transaction_id (transaction_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 7. 创建物价表
+-- 9. 创建物价表
 CREATE TABLE item_price (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     serial_no VARCHAR(50),
@@ -215,7 +252,7 @@ CREATE TABLE item_price (
     INDEX idx_item_code (item_code)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 8. 创建医院信息表
+-- 10. 创建医院信息表
 CREATE TABLE hospital_info (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     hospital_name VARCHAR(200),
@@ -237,18 +274,66 @@ sql_statements = [schema_ddl]
 # Start from today as requested by the user
 base_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
 
-# 0. Insert Hospital Info
+# 0. Insert inpatient mock data
+sql_statements.append("\n-- 插入住院相关患者数据")
+sql_statements.append("""INSERT INTO patient (
+    patient_id, patient_name, sex_code, sex, dob,
+    id_type_code, id_type, id_no, yb_flag,
+    pat_type, pat_type_code, mobile, patient_card
+) VALUES
+(
+    'P00001', '李四', '1', '男', '1980-05-15',
+    '01', '身份证', '330106198005150012', '1',
+    '住院', '02', '13800000001', 'ZYCARD0001'
+),
+(
+    'P00002', '王五', '2', '女', '1976-09-21',
+    '01', '身份证', '330106197609210024', '0',
+    '住院', '02', '13800000002', 'ZYCARD0002'
+);""")
+
+sql_statements.append("""INSERT INTO inpatient_record (
+    patient_id, medical_no, card_type, card_no, adm_info_list,
+    adm_id, adm_date, adm_dept, bill_no, adm_reason, national_code
+) VALUES
+(
+    'P00001', 'MED00001', '01', '330106198005150012', '住院信息列表',
+    'ADM00001', '2024-01-10', '外科', 'BILL00001', '手术治疗', '1'
+),
+(
+    'P00001', 'MED00002', '01', '330106198005150012', '住院信息列表',
+    'ADM00002', '2024-03-18', '骨科', 'BILL00002', '康复治疗', '1'
+),
+(
+    'P00002', 'MED00003', '01', '330106197609210024', '住院信息列表',
+    'ADM00003', '2024-04-08', '内科', 'BILL00003', '内科治疗', '0'
+);""")
+
+sql_statements.append("""INSERT INTO inpatient_balance (
+    patient_id, medical_no, total_amount, deposit_amount, deposit_balance
+) VALUES
+(
+    'P00001', 'MED00001', '5000.00', '3000.00', '2000.00'
+),
+(
+    'P00001', 'MED00002', '8600.00', '5000.00', '1400.00'
+),
+(
+    'P00002', 'MED00003', '4200.00', '2000.00', '800.00'
+);""")
+
+# 1. Insert Hospital Info
 sql_statements.append("\n-- 插入医院信息数据")
 sql_statements.append("""INSERT INTO hospital_info (hospital_name, hospital_code, hospital_level, hospital_type, address, phone, website, introduction, business_hours) VALUES ('浪潮智慧医院', 'HOSP_001', '三级甲等', '综合医院', '山东省济南市历下区浪潮路1036号', '0531-88888888', 'http://www.inspur-hospital.com', '浪潮智慧医院是一所集医疗、教学、科研、预防保健为一体的现代化大型综合性三级甲等医院。医院始建于1990年，占地面积约12万平方米，开放床位2000余张，设有内科、外科、妇产科、儿科、眼科、耳鼻喉科等28个临床科室及12个医技科室。医院拥有高素质医疗团队，其中高级职称医师占比40%以上，承担山东省多项重大科研课题，年门诊量逾120万人次，是区域内领先的医疗服务中心。', '门诊时间：周一至周五 08:00-17:00，周六至周日 08:00-12:00；急诊24小时开放');""")
 
-# 1. Generate Departments
+# 2. Generate Departments
 sql_statements.append("\n-- 插入科室数据")
 for dept_name, dept_code in dept_mappings.items():
     desc = dept_descriptions.get(dept_name, f"{dept_name}简介信息")
     sql = f"INSERT INTO department (department_code, department_name, department_des, department_image) VALUES ('{dept_code}', '{dept_name}', '{desc}', 'img_{dept_code}.png');"
     sql_statements.append(sql)
 
-# 2. Generate Clinic Rooms
+# 3. Generate Clinic Rooms
 sql_statements.append("\n-- 插入诊室数据")
 for dept_name, dept_code in dept_mappings.items():
     for room_num in range(1, 6):
@@ -257,7 +342,7 @@ for dept_name, dept_code in dept_mappings.items():
         sql = f"INSERT INTO clinic_room (room_code, room_name, department_code) VALUES ('{room_code}', '{room_name}', '{dept_code}');"
         sql_statements.append(sql)
 
-# 3. Generate Doctors & Schedules
+# 4. Generate Doctors & Schedules
 sql_statements.append("\n-- 插入医生和排班数据")
 random.seed(42)  # For reproducible demo data
 
@@ -312,7 +397,7 @@ for dept_name, dept_code in dept_mappings.items():
                 );"""
                 sql_statements.append(sql_sched.replace('\n', ' ').replace('    ', ''))
 
-# 4. Generate Item Prices
+# 5. Generate Item Prices
 sql_statements.append("\n-- 插入项目物价数据")
 items = [
     {"desc": "阿莫西林胶囊", "uom": "盒", "price": "15.50", "spec": "0.25g*50粒", "factory": "珠海联邦制药股份有限公司", "insure": "甲类", "reg_no": "国药准字H44021518"},
