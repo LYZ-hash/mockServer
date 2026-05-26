@@ -15,15 +15,12 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 
 @RestController
 public class InpatientController {
 
     @Autowired
     private InpatientService inpatientService;
-
-    private static final Random random = new Random();
 
     @PostMapping("/search/inpatient")
     public InpatientResponse searchInpatient(@RequestBody InpatientQueryDTO queryDTO) {
@@ -37,16 +34,7 @@ public class InpatientController {
     @PostMapping("/recharge/inpatient")
     public InpatientRechargeResponse rechargeInpatient(@RequestBody InpatientRechargeDTO rechargeDTO) {
         try {
-            String serialNo = "SN" + System.currentTimeMillis();
-            double rechargeAmt = Double.parseDouble(rechargeDTO.getPayAmt());
-            double currentBalance = 2000 + random.nextDouble() * 3000;
-            double newBalance = currentBalance + rechargeAmt;
-
-            return InpatientRechargeResponse.success(
-                    serialNo,
-                    String.format("%.2f", rechargeAmt),
-                    String.format("%.2f", newBalance)
-            );
+            return inpatientService.rechargeInpatient(rechargeDTO);
         } catch (Exception e) {
             return InpatientRechargeResponse.error("充值失败: " + e.getMessage());
         }

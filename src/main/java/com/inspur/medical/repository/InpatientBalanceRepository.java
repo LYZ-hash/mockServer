@@ -6,8 +6,10 @@ import org.springframework.stereotype.Repository;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface InpatientBalanceRepository extends JpaRepository<InpatientBalance, Long> {
     List<InpatientBalance> findByMedicalNoIn(Collection<String> medicalNos);
+    Optional<InpatientBalance> findByPatientIdAndMedicalNo(String patientId, String medicalNo);
 }

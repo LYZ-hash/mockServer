@@ -7,6 +7,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface InpatientRecordRepository extends JpaRepository<InpatientRecord, Long> {
@@ -21,4 +22,6 @@ public interface InpatientRecordRepository extends JpaRepository<InpatientRecord
                                  @Param("medicalNo") String medicalNo,
                                  @Param("cardNo") String cardNo,
                                  @Param("cardType") String cardType);
+
+    Optional<InpatientRecord> findByPatientIdAndMedicalNo(String patientId, String medicalNo);
 }

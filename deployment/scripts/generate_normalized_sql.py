@@ -67,6 +67,7 @@ USE medical_mock;
 
 -- 如果有旧表，先清空 (为防止外键冲突，先删有依赖关系的表)
 DROP TABLE IF EXISTS registration;
+DROP TABLE IF EXISTS inpatient_recharge_record;
 DROP TABLE IF EXISTS inpatient_balance;
 DROP TABLE IF EXISTS inpatient_record;
 DROP TABLE IF EXISTS item_price;
@@ -214,7 +215,39 @@ CREATE TABLE inpatient_balance (
     INDEX idx_inpatient_balance_patient_id (patient_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 8. 创建挂号表 (MODIFIED)
+-- 8. 创建住院充值流水表
+CREATE TABLE inpatient_recharge_record (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    serial_no VARCHAR(50) NOT NULL,
+    patient_id VARCHAR(50) NOT NULL,
+    medical_no VARCHAR(50) NOT NULL,
+    card_no VARCHAR(50) NOT NULL,
+    card_type VARCHAR(20) NOT NULL,
+    pay_details VARCHAR(1000),
+    pay_mode_code VARCHAR(50) NOT NULL,
+    pay_account_no VARCHAR(100),
+    pay_amt VARCHAR(20) NOT NULL,
+    platform_no VARCHAR(100) NOT NULL,
+    out_pay_no VARCHAR(100),
+    pay_channel VARCHAR(50),
+    pos_pay_str VARCHAR(1000),
+    pay_date VARCHAR(20) NOT NULL,
+    pay_time VARCHAR(20) NOT NULL,
+    before_deposit_amount VARCHAR(20) NOT NULL,
+    before_deposit_balance VARCHAR(20) NOT NULL,
+    after_deposit_amount VARCHAR(20) NOT NULL,
+    after_deposit_balance VARCHAR(20) NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    result_content VARCHAR(200),
+    FOREIGN KEY (patient_id) REFERENCES patient(patient_id),
+    FOREIGN KEY (medical_no) REFERENCES inpatient_record(medical_no),
+    UNIQUE KEY uk_inpatient_recharge_serial_no (serial_no),
+    UNIQUE KEY uk_inpatient_recharge_platform_no (platform_no),
+    INDEX idx_inpatient_recharge_patient_medical (patient_id, medical_no),
+    INDEX idx_inpatient_recharge_out_pay_no (out_pay_no)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 9. 创建挂号表 (MODIFIED)
 CREATE TABLE registration (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     patient_id VARCHAR(50),
@@ -233,7 +266,7 @@ CREATE TABLE registration (
     INDEX idx_transaction_id (transaction_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 9. 创建物价表
+-- 10. 创建物价表
 CREATE TABLE item_price (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     serial_no VARCHAR(50),
@@ -252,7 +285,7 @@ CREATE TABLE item_price (
     INDEX idx_item_code (item_code)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 10. 创建医院信息表
+-- 11. 创建医院信息表
 CREATE TABLE hospital_info (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     hospital_name VARCHAR(200),
